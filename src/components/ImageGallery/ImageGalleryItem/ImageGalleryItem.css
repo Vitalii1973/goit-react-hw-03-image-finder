@@ -1,0 +1,19 @@
+.ImageGalleryItem {
+  list-style: none;
+  border-radius: 8px;
+  box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  cursor: zoom-in;
+}
+
+.ImageGalleryItem-image {
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+  transition: transform 0.3s ease-in-out;
+  display: block;
+}
+
+.ImageGalleryItem-image:hover {
+  transform: scale(1.1);
+}
