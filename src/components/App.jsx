@@ -1,59 +1,66 @@
 import React, { Component } from 'react';
 import Searchbar from './Searchbar/Searchbar';
+import Modal from './Modal/Modal';
 import ImageGallery from './ImageGallery/ImageGallery';
 import Loader from './Loader/Loader';
 import Button from './Button/Button';
-import Lightbox from './Modal/Lightbox';
 import { fetchImages } from '../api';
 import './styles/App.css';
+import ReactModal from 'react-modal';
+
+ReactModal.setAppElement('#root');
 
 const API_KEY = '39826341-72b32bf5f28bdbe6242a5fe09';
 const BASE_URL = 'https://pixabay.com/api/';
 const PER_PAGE = 12;
 
 class App extends Component {
-  constructor() {
-    super();
-    this.state = {
-      searchQuery: '',
-      images: [],
-      loading: false,
-      modalImage: null,
-      page: 1,
-      totalHits: 0,
-      hasMore: true,
-      selectedImageIndex: null,
-      message: '',
-    };
-  }
+  state = {
+    searchQuery: '',
+    images: [],
+    loading: false,
+    modalImage: null,
+    page: 1,
+    totalHits: 0,
+    hasMore: true,
+    selectedImageIndex: null,
+    message: '',
+    showBackend: false,
+  };
 
-  componentDidMount() {
-    const { searchQuery, page } = this.state;
-    if (searchQuery && page === 1) {
-      this.fetchData(searchQuery, page);
+  componentDidUpdate(prevProps, prevState) {
+    const { totalHits, page } = this.state;
+
+    const shouldShowBackend = page < Math.ceil(totalHits / 12);
+
+    if (shouldShowBackend !== prevState.showBackend) {
+      this.setState({ showBackend: shouldShowBackend });
     }
   }
 
-  fetchData = async (query, page) => {
+  fetchData = async (query, currentPage) => {
     this.setState({ loading: true });
-    const perPage = PER_PAGE;
 
     try {
-      const data = await fetchImages(query, page, perPage);
+      const data = await fetchImages(query, currentPage, PER_PAGE);
 
       if (data.hits.length === 0) {
         this.setState({ hasMore: false });
         return;
       }
 
+      const totalPages = Math.ceil(data.totalHits / PER_PAGE);
+
       this.setState(prevState => ({
         images: [...prevState.images, ...data.hits],
-        page: page + 1,
+        page: currentPage + 1,
         loading: false,
         totalHits: data.totalHits,
+        hasMore: currentPage < totalPages,
+        totalPages: totalPages,
       }));
 
-      const remainingImages = data.totalHits - page * perPage;
+      const remainingImages = data.totalHits - currentPage * PER_PAGE;
       this.displayMessage(`Remaining images: ${remainingImages}`);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -78,6 +85,7 @@ class App extends Component {
           this.setState(prevState => ({
             images: [...data.hits],
             loading: false,
+            searchQuery: query, // Використовуйте searchQuery тут
           }));
         } catch (error) {
           console.error('Error fetching data:', error);
@@ -89,13 +97,39 @@ class App extends Component {
 
   fetchMoreImages = () => {
     const { searchQuery, page } = this.state;
-    this.setState({ loading: true, page: page + 1 }, () => {
-      this.fetchData(searchQuery, page + 1);
+
+    this.setState({ loading: true, page: page + 1 }, async () => {
+      try {
+        const data = await fetchImages(searchQuery, page + 1, PER_PAGE);
+
+        if (data.hits.length === 0) {
+          this.setState({ hasMore: false });
+          return;
+        }
+
+        const totalPages = Math.ceil(data.totalHits / PER_PAGE);
+
+        this.setState(prevState => ({
+          images: [...prevState.images, ...data.hits],
+          loading: false,
+          totalHits: data.totalHits,
+          hasMore: page + 1 < totalPages,
+        }));
+
+        const remainingImages = data.totalHits - (page + 1) * PER_PAGE;
+        this.displayMessage(`Remaining images: ${remainingImages}`);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        this.setState({ loading: false });
+      }
     });
   };
 
   handleOpenModal = image => {
-    this.setState({ modalImage: image });
+    // Перевірка, чи модальне вікно не відкрите перед відкриттям
+    if (!this.state.modalImage) {
+      this.setState({ modalImage: image });
+    }
   };
 
   handleCloseModal = () => {
@@ -135,13 +169,13 @@ class App extends Component {
         <ImageGallery
           images={images}
           loading={loading}
-          onImageClick={this.handleImageClick}
+          onOpenModal={this.handleOpenModal}
           totalHits={totalHits}
           hasMore={hasMore}
           onLoadMore={this.fetchMoreImages}
         />
         {loading && <Loader />}
-        {images.length > 0 && (
+        {!loading && hasMore && images.length > 0 && (
           <Button
             onLoadMore={this.fetchMoreImages}
             hasMore={hasMore}
@@ -151,12 +185,13 @@ class App extends Component {
           />
         )}
         {modalImage && (
-          <Lightbox
+          <Modal
             imageUrl={modalImage}
             alt="Large Image"
             onClose={this.handleCloseModal}
             showNextImage={this.showNextImage}
             showPrevImage={this.showPrevImage}
+            modalRef={this.modalRef}
           />
         )}
         {message && (

@@ -1,22 +1,15 @@
+// ImageGallery.jsx
 import React, { Component } from 'react';
 import ImageGalleryItem from './ImageGalleryItem/ImageGalleryItem';
-import Button from '../Button/Button'; // Підключаємо компонент Button
 import './ImageGallery.css';
 
 class ImageGallery extends Component {
-  handleImageClick = (index, image) => {
-    this.props.onImageClick(image);
-  };
-
-  handleLoadMore = () => {
-    const { searchQuery, page } = this.state;
-    const nextPage = page + 1;
-
-    this.props.onLoadMore(searchQuery, nextPage);
+  handleImageClick = image => {
+    this.props.onOpenModal(image);
   };
 
   render() {
-    const { images, loading, totalHits, hasMore } = this.props;
+    const { images } = this.props;
 
     return (
       <div className="ImageGallery">
@@ -25,23 +18,13 @@ class ImageGallery extends Component {
             <ul className="gallery">
               {images.map((image, index) => (
                 <ImageGalleryItem
-                  key={image.id}
+                  key={`${image.id}-${index}`}
                   image={image}
-                  onImageClick={() => this.handleImageClick(index, image)}
+                  onImageClick={this.handleImageClick}
                 />
               ))}
             </ul>
-            {totalHits > images.length && hasMore && (
-              <Button
-                onLoadMore={() =>
-                  this.fetchMoreImages(this.state.searchQuery, this.state.page)
-                }
-              />
-            )}
           </div>
-        )}
-        {totalHits > 0 && !loading && !hasMore && (
-          <p>We're sorry, but you've reached the end of search results.</p>
         )}
       </div>
     );
