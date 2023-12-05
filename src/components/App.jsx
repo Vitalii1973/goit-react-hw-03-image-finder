@@ -22,45 +22,62 @@ class App extends Component {
     modalImage: null,
     page: 1,
     totalHits: 0,
-    hasMore: true,
+    hasMore: false,
     selectedImageIndex: null,
     message: '',
-    showBackend: false,
   };
 
   componentDidUpdate(prevProps, prevState) {
-    const { totalHits, page } = this.state;
+    const { searchQuery, page } = this.state;
 
-    const shouldShowBackend = page < Math.ceil(totalHits / 12);
-
-    if (shouldShowBackend !== prevState.showBackend) {
-      this.setState({ showBackend: shouldShowBackend });
+    if (prevState.searchQuery !== searchQuery || prevState.page !== page) {
+      this.fetchData(searchQuery, page);
     }
   }
 
-  fetchData = async (query, currentPage) => {
+  fetchData = async (query, page) => {
     this.setState({ loading: true });
 
     try {
-      const data = await fetchImages(query, currentPage, PER_PAGE);
+      const data = await fetchImages(query, page, PER_PAGE);
 
       if (data.hits.length === 0) {
-        this.setState({ hasMore: false });
+        this.displayMessage('No images found.');
         return;
       }
 
       const totalPages = Math.ceil(data.totalHits / PER_PAGE);
 
-      this.setState(prevState => ({
-        images: [...prevState.images, ...data.hits],
-        page: currentPage + 1,
-        loading: false,
-        totalHits: data.totalHits,
-        hasMore: currentPage < totalPages,
-        totalPages: totalPages,
-      }));
+      this.setState(prevState => {
+        const uniqueImages =
+          page === 1
+            ? data.hits.filter(
+                newImage =>
+                  !prevState.images.some(
+                    prevImage => prevImage.id === newImage.id
+                  )
+              )
+            : data.hits.filter(
+                newImage =>
+                  !prevState.images.some(
+                    prevImage =>
+                      prevImage.id === newImage.id &&
+                      prevImage.page === newImage.page
+                  )
+              );
 
-      const remainingImages = data.totalHits - currentPage * PER_PAGE;
+        return {
+          images:
+            page === 1
+              ? [...prevState.images, ...uniqueImages]
+              : [...prevState.images, ...uniqueImages],
+          loading: false,
+          totalHits: data.totalHits,
+          hasMore: page < totalPages,
+        };
+      });
+
+      const remainingImages = data.totalHits - page * PER_PAGE;
       this.displayMessage(`Remaining images: ${remainingImages}`);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -78,19 +95,9 @@ class App extends Component {
 
   handleSubmit = query => {
     this.setState(
-      { searchQuery: query, images: [], loading: true, page: 1 },
-      async () => {
-        try {
-          const data = await fetchImages(query, 1, PER_PAGE);
-          this.setState(prevState => ({
-            images: [...data.hits],
-            loading: false,
-            searchQuery: query, // Використовуйте searchQuery тут
-          }));
-        } catch (error) {
-          console.error('Error fetching data:', error);
-          this.setState({ loading: false });
-        }
+      { searchQuery: query, images: [], loading: true, page: 1, hasMore: true },
+      () => {
+        this.fetchData(query, 1);
       }
     );
   };
@@ -98,35 +105,15 @@ class App extends Component {
   fetchMoreImages = () => {
     const { searchQuery, page } = this.state;
 
-    this.setState({ loading: true, page: page + 1 }, async () => {
-      try {
-        const data = await fetchImages(searchQuery, page + 1, PER_PAGE);
-
-        if (data.hits.length === 0) {
-          this.setState({ hasMore: false });
-          return;
-        }
-
-        const totalPages = Math.ceil(data.totalHits / PER_PAGE);
-
-        this.setState(prevState => ({
-          images: [...prevState.images, ...data.hits],
-          loading: false,
-          totalHits: data.totalHits,
-          hasMore: page + 1 < totalPages,
-        }));
-
-        const remainingImages = data.totalHits - (page + 1) * PER_PAGE;
-        this.displayMessage(`Remaining images: ${remainingImages}`);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        this.setState({ loading: false });
+    this.setState(
+      prevState => ({ page: prevState.page + 1 }),
+      () => {
+        this.fetchData(searchQuery, page + 1);
       }
-    });
+    );
   };
 
   handleOpenModal = image => {
-    // Перевірка, чи модальне вікно не відкрите перед відкриттям
     if (!this.state.modalImage) {
       this.setState({ modalImage: image });
     }
