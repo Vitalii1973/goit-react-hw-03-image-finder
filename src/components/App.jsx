@@ -49,28 +49,15 @@ class App extends Component {
       const totalPages = Math.ceil(data.totalHits / PER_PAGE);
 
       this.setState(prevState => {
-        const uniqueImages =
-          page === 1
-            ? data.hits.filter(
-                newImage =>
-                  !prevState.images.some(
-                    prevImage => prevImage.id === newImage.id
-                  )
-              )
-            : data.hits.filter(
-                newImage =>
-                  !prevState.images.some(
-                    prevImage =>
-                      prevImage.id === newImage.id &&
-                      prevImage.page === newImage.page
-                  )
-              );
+        const newImages = data.hits.filter(
+          image =>
+            !prevState.images.some(
+              existingImage => existingImage.id === image.id
+            )
+        );
 
         return {
-          images:
-            page === 1
-              ? [...prevState.images, ...uniqueImages]
-              : [...prevState.images, ...uniqueImages],
+          images: [...prevState.images, ...newImages],
           loading: false,
           totalHits: data.totalHits,
           hasMore: page < totalPages,
@@ -95,7 +82,13 @@ class App extends Component {
 
   handleSubmit = query => {
     this.setState(
-      { searchQuery: query, images: [], loading: true, page: 1, hasMore: true },
+      {
+        searchQuery: query,
+        images: [],
+        loading: true,
+        page: 1,
+        hasMore: true,
+      },
       () => {
         this.fetchData(query, 1);
       }
@@ -104,7 +97,6 @@ class App extends Component {
 
   fetchMoreImages = () => {
     const { searchQuery, page } = this.state;
-
     this.setState(
       prevState => ({ page: prevState.page + 1 }),
       () => {
