@@ -49,15 +49,8 @@ class App extends Component {
       const totalPages = Math.ceil(data.totalHits / PER_PAGE);
 
       this.setState(prevState => {
-        const newImages = data.hits.filter(
-          image =>
-            !prevState.images.some(
-              existingImage => existingImage.id === image.id
-            )
-        );
-
         return {
-          images: [...prevState.images, ...newImages],
+          images: [...prevState.images, ...data.hits],
           loading: false,
           totalHits: data.totalHits,
           hasMore: page < totalPages,
@@ -81,28 +74,17 @@ class App extends Component {
   };
 
   handleSubmit = query => {
-    this.setState(
-      {
-        searchQuery: query,
-        images: [],
-        loading: true,
-        page: 1,
-        hasMore: true,
-      },
-      () => {
-        this.fetchData(query, 1);
-      }
-    );
+    this.setState({
+      searchQuery: query,
+      images: [],
+      loading: true,
+      page: 1,
+      hasMore: true,
+    });
   };
 
   fetchMoreImages = () => {
-    const { searchQuery, page } = this.state;
-    this.setState(
-      prevState => ({ page: prevState.page + 1 }),
-      () => {
-        this.fetchData(searchQuery, page + 1);
-      }
-    );
+    this.setState(prevState => ({ page: prevState.page + 1 }));
   };
 
   handleOpenModal = image => {
